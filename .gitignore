@@ -1,4 +1,6 @@
 .venv
+AGENTS.md
+.env
 
 # Local .terraform directories
 .terraform/
