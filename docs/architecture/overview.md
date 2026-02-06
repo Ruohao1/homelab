@@ -11,6 +11,8 @@ Core rules:
 - **All access via VPN** (WireGuard in the cloud; homelab connects outbound).
 - Assume nodes are disposable; **state and secrets are protected**.
 
+See `docs/architecture/how-it-works.md` for the end-to-end flow and component interactions.
+
 ---
 
 ## Constraints
@@ -51,6 +53,7 @@ Terraform responsibilities:
   - Proxmox VMs/LXCs (templates, sizing, networks)
   - DNS records (internal), firewall rules (where applicable)
   - Cloud resources (WireGuard VPS, object storage, backup credentials)
+- Export inventory details for configuration management
 - Manage **state**:
   - Stored securely (remote backend preferred)
   - Locked, versioned, backed up
@@ -60,13 +63,19 @@ Terraform does **not**:
 - manage day-to-day app config drift inside machines (that’s “config mgmt” territory)
 - replace your runtime orchestrator
 
-### 4) Runtime Layer (Docker/systemd or k3s)
+### 4) Configuration Management (Ansible)
+
+- Applies baseline and hardening on provisioned hosts
+- Uses dynamic inventory sourced from Terraform state/outputs
+- Groups hosts by role (e.g., `role_control`, `role_worker`) and site
+
+### 5) Runtime Layer (Docker/systemd or k3s)
 
 - Baseline runtime: Docker Compose + systemd units
 - Optional runtime: k3s cluster (one or multiple nodes)
 - Every service is deployed into a clearly defined **trust zone** and **network**.
 
-### 5) Security & Observability Layer (cross-cutting)
+### 6) Security & Observability Layer (cross-cutting)
 
 - Identity + Secrets:
   - Password manager + optional Vault later
@@ -164,6 +173,11 @@ Terraform does **not**:
   - backup resources and credentials wiring
 - outputs inventory info (IP addresses, hostnames, service endpoints)
 
+### Ansible
+
+- applies baseline + hardening inside VMs/LXCs
+- uses dynamic inventory from Terraform to avoid drift
+
 ### Runtime (Docker/systemd)
 
 - deploys services inside VMs/LXCs
@@ -181,37 +195,57 @@ Terraform does **not**:
 
 ---
 
-## Build Order (opinionated)
+## Subnets and Hosts
 
-### Phase 0 — Foundations (do first)
+The homelab is segmented by purpose and trust level. Each subnet has a clear role and an expected set of hosts.
 
-1) Cloud VPS with WireGuard (hub)
-2) Homelab connects outbound to cloud (site-to-site WG)
-3) MGMT network + bastion/jump host reachable only via VPN
-4) Terraform state strategy (remote backend, locking, backups)
+### Management subnet (10.10.0.0/24)
 
-### Phase 1 — Core Platform
+- Purpose: control plane access only.
+- Hosts: Proxmox admin, bastion/jumpbox, Terraform/Ansible control.
+- Rules: VPN-only access; no inbound from other subnets.
 
-1) Proxmox “golden templates” (cloud-init ready)
-2) Terraform-managed VM lifecycle for:
-   - gateway/jump host
-   - DNS (internal) + reverse proxy (internal only)
-3) Baseline observability:
-   - syslog/agent + minimal dashboarding
+### Observability subnet (10.20.0.0/24)
 
-### Phase 2 — Security Lab + Telemetry
+- Purpose: defensive telemetry that survives compromise elsewhere.
+- Hosts: metrics, logs, alerting, IDS sensors.
+- Rules: allow inbound telemetry from workloads/lab/k3s; minimal egress.
 
-1) LAB network + “victim” VMs
-2) Egress controls (deny-all by default, allow only necessary)
-3) SIEM pipeline (log collection → parsing → storage → visualization)
-4) Continuous scanning from inside (and from cloud for the VPS only)
+### Services subnet (10.30.0.0/24)
 
-### Phase 3 — Optional k3s
+- Purpose: shared internal platform plumbing.
+- Hosts: internal DNS, reverse proxy (VPN-only), PKI, NTP, registry mirror.
+- Rules: allow DNS from all; deny access to mgmt.
 
-- Only after:
-  - networking is clean
-  - VPN and segmentation are proven
-  - backups are real and tested
+### Workloads subnet (10.40.0.0/24)
+
+- Purpose: stable internal applications.
+- Hosts: Nextcloud, Jellyfin, Vaultwarden, app backends/DBs.
+- Rules: can reach services + observability; never reach mgmt.
+
+### Lab subnet (10.40.10.0/24)
+
+- Purpose: intentionally unsafe targets and experiments.
+- Hosts: DVWA/Juice Shop, exploit targets, sandboxes.
+- Rules: deny access to mgmt; strict egress; allow only required telemetry.
+
+### k3s-nodes subnet (10.40.20.0/24)
+
+- Purpose: optional Kubernetes substrate.
+- Hosts: k3s control-plane and workers.
+- Rules: treat as hostile; restrict access to mgmt and services.
+
+### Ephemeral subnet (10.40.30.0/24)
+
+- Purpose: short-lived compute.
+- Hosts: CI runners, scanners, throwaway VMs.
+- Rules: deny access to mgmt; limited, task-specific egress.
+
+### VPN overlay subnet (10.50.0.0/24)
+
+- Purpose: remote access entry point only.
+- Hosts: wg-hub (cloud), wg-gw (homelab), optional admin peers.
+- Rules: VPN can reach mgmt; deny other subnets by default.
 
 ---
 
