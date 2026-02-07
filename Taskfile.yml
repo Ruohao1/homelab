@@ -1,0 +1,17 @@
+version: '3'
+
+vars:
+  GREETING: Hello, world!
+  ANSIBLE_CONFIG: ANSIBLE_CONFIG=./ansible/ansible.cfg
+
+tasks:
+  proxmox_net:
+    desc: Initiate homelab network bridges
+    cmds:
+      - "{{.ANSIBLE_CONFIG}} ansible-playbook ansible/playbooks/proxmox-net.yml --ask-pass"
+
+  default:
+    desc: Print a greeting message
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
