@@ -1,0 +1,2 @@
+- name: Reload networking safely
+  command: ifreload -a

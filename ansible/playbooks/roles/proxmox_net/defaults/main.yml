@@ -1,0 +1,23 @@
+proxmox_nic: "nic0"
+
+# Mgmt addressing
+mgmt_mode: "static"
+mgmt_ip: "192.168.2.254"
+mgmt_cidr: "24"
+mgmt_gw: "192.168.2.1"
+mgmt_dns: ["1.1.1.1", "9.9.9.9"]
+
+bridges:
+  mgmt: "vmbr_mgmt"
+  obs: "vmbr_obs"
+  services: "vmbr_services"
+  workloads: "vmbr_workloads"
+  lab: "vmbr_lab"
+  k3s: "vmbr_k3s"
+  ephemeral: "vmbr_ephemeral"
+
+# Safety
+phase1_no_routing: true
+backup_interfaces: true
+interfaces_path: "/etc/network/interfaces"
+apply_network: true

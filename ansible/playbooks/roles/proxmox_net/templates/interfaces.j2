@@ -1,0 +1,34 @@
+# Managed by Ansible (proxmox_net). DO NOT EDIT.
+auto lo
+iface lo inet loopback
+
+# Physical NIC: no IP here.
+iface {{ proxmox_nic }} inet manual
+
+# --- MGMT bridge (the ONLY L3 interface on host) ---
+auto {{ bridges.mgmt }}
+{% if mgmt_mode == "dhcp" %}
+iface {{ bridges.mgmt }} inet dhcp
+{% else %}
+iface {{ bridges.mgmt }} inet static
+    address {{ mgmt_ip }}/{{ mgmt_cidr }}
+    gateway {{ mgmt_gw }}
+{% if mgmt_dns is defined and mgmt_dns|length > 0 %}
+    dns-nameservers {{ mgmt_dns | join(' ') }}
+{% endif %}
+{% endif %}
+    bridge_ports {{ proxmox_nic }}
+    bridge_stp off
+    bridge_fd 0
+    bridge_vlan_aware yes
+
+# --- Pure L2 bridges (NO IP) ---
+{% for key in ['obs','services','workloads','lab','k3s','ephemeral'] %}
+auto {{ bridges[key] }}
+iface {{ bridges[key] }} inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    bridge_vlan_aware yes
+{% endfor %}
+

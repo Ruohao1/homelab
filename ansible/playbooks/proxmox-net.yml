@@ -1,0 +1,4 @@
+- hosts: pve-01
+  gather_facts: false
+  roles:
+    - proxmox_net
