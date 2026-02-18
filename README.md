@@ -131,12 +131,12 @@ If this architecture works here, it scales conceptually to larger environments.
 
 ### Cloud
 
-**VPN Overlay – `10.50.0.0/24`**
+**VPN Overlay – `10.255.0.0/24`**
 - WireGuard tunnel endpoints
 - Peers:
-  - `10.50.0.1`  – wg-hub (cloud)
-  - `10.50.0.10` – wg-gw (homelab)
-  - `10.50.0.20` – admin-laptop (optional)
+  - `10.255.0.1`  – wg-hub (cloud)
+  - `10.255.0.10` – wg-gw (homelab)
+  - `10.255.0.20` – admin-laptop (optional)
 
 **Cloud-only Subnet – `10.60.0.0/24`**
 - Disposable external perspective
@@ -232,4 +232,3 @@ Design decisions prioritize **clarity, safety, and realism** over convenience.
 
 Personal learning project.  
 No warranty. No shortcuts.
-
