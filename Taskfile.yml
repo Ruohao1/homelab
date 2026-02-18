@@ -1,17 +1,27 @@
-version: '3'
+version: "3"
 
 vars:
-  GREETING: Hello, world!
-  ANSIBLE_CONFIG: ANSIBLE_CONFIG=./ansible/ansible.cfg
+  ANSIBLE_ROOT: ./ansible
+  TERRAFORM_ROOT: ./terraform
+  ANSIBLE_CONFIG: "{{.ANSIBLE_ROOT}}/ansible.cfg"
+  ANSIBLE_PLAYBOOKS: "{{.ANSIBLE_ROOT}}/playbooks"
+  ANSIBLE_INVENTORIES: "{{.ANSIBLE_ROOT}}/inventories"
+
+  PROXMOX_TERRAFORM_USER_ENV: "ANSIBLE_CONFIG={{.ANSIBLE_CONFIG}} PROXMOX_USER={{.ANSIBLE_USER}} PROXMOX_HOST={{.ANSIBLE_HOST}} ANSIBLE_HOST={{.ANSIBLE_HOST}}"
 
 tasks:
-  proxmox_net:
-    desc: Initiate homelab network bridges
-    cmds:
-      - "{{.ANSIBLE_CONFIG}} ansible-playbook ansible/playbooks/proxmox-net.yml --ask-pass"
+  proxmox_terraform_user:
+    desc: Bootstrap Proxmox Terraform API user/token
+    env:
+      ANSIBLE_CONFIG: '{{.ANSIBLE_CONFIG}}'
+      ANSIBLE_HOST: '{{.ANSIBLE_HOST}}'
+      PROXMOX_USER: '{{.ANSIBLE_USER}}'
+      PROXMOX_HOST: '{{.ANSIBLE_HOST}}'
 
-  default:
-    desc: Print a greeting message
     cmds:
-      - echo "{{.GREETING}}"
-    silent: true
+      - "ansible-playbook -i {{.ANSIBLE_INVENTORIES}}/static/hosts.yml {{.ANSIBLE_PLAYBOOKS}}/proxmox-terraform-user.yml --ask-pass"
+
+  vpn_edge:
+    desc: Provision, update, or destroy the AWS Edge VPN infrastructure using Terraform in terraform/envs/aws-edge-vpn/.
+    cmds:
+      - "terraform -chdir=./terraform/envs/cloud/aws-edge-vpn/ {{.CLI_ARGS}}"
